@@ -1,10 +1,16 @@
 package Spark
 
-import Common.{BBOFunction, ExecutionParameters}
+import java.io.{BufferedWriter, File, FileWriter}
+
+import Common.{Ackley, BBOFunction, ExecutionParameters, Quadric, Rastrigin, Spherical}
 import Entities.{Enjambre, TipoOptimizacion}
 import org.apache.log4j.Logger
 import org.apache.spark.SparkContext
 import Logic.PsoSec.{crearEnjambre, evaluarPartícula, moverEnjambre}
+import au.com.bytecode.opencsv.CSVWriter
+
+import scala.collection.JavaConverters._
+import scala.collection.mutable.ListBuffer
 
 class PsoMasterSlave(ep: ExecutionParameters) {
 
@@ -12,8 +18,28 @@ class PsoMasterSlave(ep: ExecutionParameters) {
 
   def run(sparkContext : SparkContext) = {
     log.info("****** Optimizando enjambre *******")
-    println(optimizar_enjambre(ep.func,ep.n_variables,ep.limit_inf,ep.limit_sup,ep.n_particulas,ep.iterations, ep.inercia,
-      ep.inercia_max, ep.inercia_min, ep.peso_cognitivo, ep.peso_social, sparkContext))
+    val data = optimizar_enjambre(ep.func,ep.n_variables,ep.limit_inf,ep.limit_sup,ep.n_particulas,ep.iterations, ep.inercia,
+      ep.inercia_max, ep.inercia_min, ep.peso_cognitivo, ep.peso_social, sparkContext)
+    var funcName = ""
+    (ep.func) match {
+      case Ackley => funcName = "Ackley"
+      case Quadric => funcName = "Quadric"
+      case Rastrigin => funcName = "Rastrigin"
+      case Spherical => funcName = "Spherical"
+    }
+    val file = new File(getClass.getClassLoader.getResource("master-slave-"+funcName+"-4"+".csv").getPath)
+    val outputFile = new BufferedWriter(new FileWriter(file))
+    val csvWriter = new CSVWriter(outputFile)
+    val csvFields = Array("value")
+    var listOfRecords = new ListBuffer[Array[String]]()
+    listOfRecords +=csvFields
+    (data) map { case value => {
+      listOfRecords+= Array(value.toString)
+    }}
+    val aux  : java.util.List[Array[String]] = listOfRecords.toList.asJava
+    csvWriter.writeAll(aux)
+    outputFile.close()
+    println("\n Archivo " + funcName + " escrito y preparado para visualización!\n")
   }
 
   def evaluarEnjambre(enjambre: Enjambre, func: BBOFunction, optimizacion: TipoOptimizacion.Optimizacion, sc: SparkContext)

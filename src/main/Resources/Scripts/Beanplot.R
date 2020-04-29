@@ -1,0 +1,7 @@
+library("beanplot")
+resultadoAckley <- read.table("secStatisticsAckley.csv",header=TRUE)
+resultadoQuadric <- read.table("secStatisticsQuadric.csv",header=TRUE)
+resultadoRastrigin <- read.table("secStatisticsRastrigin.csv",header=TRUE)
+resultadoSpherical <- read.table("secStatisticsSpherical.csv",header=TRUE)
+beanplot(resultadoQuadric$value,main="PSO stats",xlab="Benchmarks",ylab="Value",col = c("#CAB2D6", "#33A02C", "#B2DF8A"), border = "#CAB2D6",what=c(0,1,1,0),show.names=FALSE)
+axis(1,at=c(1),labels=c("Quadric"))

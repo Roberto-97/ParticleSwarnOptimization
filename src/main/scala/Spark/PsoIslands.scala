@@ -16,14 +16,19 @@ class PsoIslands(ep: ExecutionParameters) {
     val psoFunction = new PsoSpark(ep.iterations, ep.func, ep.inercia, ep.peso_cognitivo, ep.peso_social,
       TipoOptimizacion.minimizar)
     var globalIterations = ep.globalIterations
+    var results = Vector.fill[Double](ep.globalIterations)(0.0)
+    var cont = 0;
     while (globalIterations > 0) {
       print("Global iteration nº ",globalIterations+"\n")
       population = islands(population,new RandomPartitioner(ep.islands), psoFunction)
       val mejorParticula = population.map(p => (p._2.mejorValor))
         .reduce((a,b) => if (a.get < b.get) a else b)
+      results = results.updated(cont,mejorParticula.get)
+      cont +=1
       println("Mejor partícula =>"+ mejorParticula + "\n")
       globalIterations-= 1
     }
+    println("Resultado ",results)
     print("\n Algoritmo finalizado, tiempo transcurrido: %.0f milisegundos".format((System.nanoTime - startTime)/1E6) + "\n")
 
   }
