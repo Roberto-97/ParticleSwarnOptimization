@@ -9,7 +9,7 @@ object Main {
     val conf = new Conf(args)
     val sparkConf = new SparkConf().setAppName("pso-spark").setMaster("local[4]")
     val sc = new SparkContext(sparkConf)
-    new PsoMasterSlave(conf.build).run(sc)
+    new PsoMasterSlave(conf.build).statistics(sc)
   }
 
 }

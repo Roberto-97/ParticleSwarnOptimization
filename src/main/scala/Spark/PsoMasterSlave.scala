@@ -15,8 +15,38 @@ import scala.collection.mutable.ListBuffer
 class PsoMasterSlave(ep: ExecutionParameters) {
 
   @transient lazy val log: Logger = Logger.getLogger(getClass.getName)
+  def statistics(sparkContext : SparkContext): Unit = {
+    var funcName = ""
+    (ep.func) match {
+      case Ackley => funcName = "Ackley"
+      case Quadric => funcName = "Quadric"
+      case Rastrigin => funcName = "Rastrigin"
+      case Spherical => funcName = "Spherical"
+    }
+    var statistics = Vector.fill[Double](15)(0.0)
+    for (i <- 0 to 14) {
+      println("Iteracion ",i)
+      val data = optimizar_enjambre(ep.func, ep.n_variables, ep.limit_inf, ep.limit_sup, ep.n_particulas, ep.iterations, ep.inercia,
+        ep.inercia_max, ep.inercia_min, ep.peso_cognitivo, ep.peso_social, sparkContext)
+      val value = data(ep.iterations-1)
+      statistics = statistics.updated(i,value)
+    }
+    val file = new File(getClass.getClassLoader.getResource("master-slave-stat-"+funcName+"-4"+".csv").getPath)
+    val outputFile = new BufferedWriter(new FileWriter(file))
+    val csvWriter = new CSVWriter(outputFile)
+    val csvFields = Array("value")
+    var listOfRecords = new ListBuffer[Array[String]]()
+    listOfRecords +=csvFields
+    (statistics) map { case value => {
+      listOfRecords+= Array(value.toString)
+    }}
+    val aux  : java.util.List[Array[String]] = listOfRecords.toList.asJava
+    csvWriter.writeAll(aux)
+    outputFile.close()
+    println("\n Archivo " + funcName + " escrito y preparado para visualización!\n")
+  }
 
-  def run(sparkContext : SparkContext) = {
+  def convergence(sparkContext : SparkContext) = {
     log.info("****** Optimizando enjambre *******")
     val data = optimizar_enjambre(ep.func,ep.n_variables,ep.limit_inf,ep.limit_sup,ep.n_particulas,ep.iterations, ep.inercia,
       ep.inercia_max, ep.inercia_min, ep.peso_cognitivo, ep.peso_social, sparkContext)
