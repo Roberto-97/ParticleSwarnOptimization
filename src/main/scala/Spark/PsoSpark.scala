@@ -1,7 +1,9 @@
 package Spark
 
+import java.io.{BufferedWriter, File, FileWriter}
+
 import Common.BBOFunction
-import Entities.TipoOptimizacion
+import Entities.{TipoOptimizacion, data}
 import ParticleSwarnOptimization.Enjambre
 
 object PsoSpark {
@@ -13,18 +15,24 @@ object PsoSpark {
 }
 
 class PsoSpark(iterations: Int, func:BBOFunction, inercia: Double, pesoCognitivo: Int, pesoSocial: Int,
-               optimizacion: TipoOptimizacion.Optimizacion)
-  extends (Enjambre => Enjambre) with Serializable {
+               optimizacion: TipoOptimizacion.Optimizacion, funcName: String)
+  extends (Enjambre => Vector[(Enjambre,Vector[data])]) with Serializable {
 
 
-  def apply(enjambre: Enjambre): (Enjambre) = {
+  def apply(enjambre: Enjambre): Vector[(Enjambre,Vector[data])] = {
     var new_enjambre = enjambre
     var i = 0
-    while (i != 500){
-      new_enjambre = ParticleSwarnOptimization.optimizar_enjambre(new_enjambre,iterations,func, optimizacion, inercia_max = 0.9, inercia_min = 0.4,
-        pesoCognitivo, pesoSocial,i)
+    var time=0.0
+    var result = Vector.fill[data](iterations)(data(0.0,0.0))
+    while (i < iterations){
+      val initTime = System.nanoTime
+      new_enjambre=ParticleSwarnOptimization.optimizar_enjambre(new_enjambre,iterations,func,optimizacion,inercia_max = 0.9,inercia_min = 0.4,
+        pesoCognitivo,pesoSocial,i)
+      val mejor_valor = new_enjambre.minBy(p => p.mejorValor).mejorValor
+      time+=(System.nanoTime - initTime)/1E6
+      result = result.updated(i,data(mejor_valor.get,time))
       i+=1
     }
-    (new_enjambre)
+    Vector((new_enjambre,result))
   }
 }

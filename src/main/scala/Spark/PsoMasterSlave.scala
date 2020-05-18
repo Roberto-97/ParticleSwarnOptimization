@@ -6,7 +6,7 @@ import Common.{Ackley, BBOFunction, ExecutionParameters, Quadric, Rastrigin, Sph
 import Entities.{Enjambre, TipoOptimizacion, data}
 import org.apache.log4j.Logger
 import org.apache.spark.SparkContext
-import Logic.PsoSec.{crearEnjambre, evaluarPartícula, moverEnjambre}
+import Secuencial.PsoSec.{crearEnjambre, evaluarPartícula, moverEnjambre}
 import au.com.bytecode.opencsv.CSVWriter
 
 import scala.collection.JavaConverters._
@@ -23,8 +23,8 @@ class PsoMasterSlave(ep: ExecutionParameters) {
       case Rastrigin => funcName = "Rastrigin"
       case Spherical => funcName = "Spherical"
     }
-    var statistics = Vector.fill[Double](20)(0.0)
-    var convergence = Seq.fill[Double](ep.iterations)(0.0)
+    var statistics = Vector.fill[data](20)(data(0.0,0.0))
+    var convergence = Seq.fill[data](ep.iterations)(data(0.0,0.0))
     for (i <- 0 to 19) {
       println("Iteracion ",i)
       val data = optimizar_enjambre(ep.func, ep.n_variables, ep.limit_inf, ep.limit_sup, ep.n_particulas, ep.iterations, ep.inercia,
@@ -35,29 +35,23 @@ class PsoMasterSlave(ep: ExecutionParameters) {
       }
       statistics = statistics.updated(i,value)
     }
-    var file = new File(getClass.getClassLoader.getResource("master-slave-stat-"+funcName+"-4"+".csv").getPath)
+    var file = new File(getClass.getClassLoader.getResource("master-slave-stat-"+funcName+"-1"+".csv").getPath)
     var outputFile = new BufferedWriter(new FileWriter(file))
-    var csvWriter = new CSVWriter(outputFile)
-    var csvFields = Array("value")
-    var listOfRecords = new ListBuffer[Array[String]]()
-    listOfRecords +=csvFields
+    outputFile.write("exp"+","+"value"+","+"time"+"\n")
+    var cont = 1
     (statistics) map { case value => {
-      listOfRecords+= Array(value.toString)
+      outputFile.write(cont.toString+","+value.value.toString+","+value.time.toString+"\n")
+      cont+=1
     }}
-    var aux = listOfRecords.toList.asJava
-    csvWriter.writeAll(aux)
     outputFile.close()
-    file = new File(getClass.getClassLoader.getResource("master-slave-"+funcName+"-4"+".csv").getPath)
+    file = new File(getClass.getClassLoader.getResource("master-slave-"+funcName+"-1"+".csv").getPath)
     outputFile = new BufferedWriter(new FileWriter(file))
-    csvWriter = new CSVWriter(outputFile)
-    csvFields = Array("value")
-    listOfRecords = new ListBuffer[Array[String]]()
-    listOfRecords +=csvFields
+    outputFile.write("iter"+","+"value"+","+"time"+"\n")
+    cont=1
     (convergence) map { case value => {
-      listOfRecords+= Array(value.toString)
+      outputFile.write(cont.toString+","+value.value.toString+","+value.time.toString+"\n")
+      cont+=1
     }}
-    aux = listOfRecords.toList.asJava
-    csvWriter.writeAll(aux)
     outputFile.close()
     println("\n Archivo " + funcName + " escrito y preparado para visualización!\n")
   }
@@ -74,35 +68,30 @@ class PsoMasterSlave(ep: ExecutionParameters) {
 
   def optimizar_enjambre(func: BBOFunction, n_variables: Int, limites_inf: Vector[Double], limites_sup: Vector[Double],
                          n_particulas: Int, n_iteraciones: Int, inercia: Double,inercia_max: Double, inercia_min: Double,
-                         peso_cognitivo: Int, peso_social: Int, sc: SparkContext): Seq[Double] = {
+                         peso_cognitivo: Int, peso_social: Int, sc: SparkContext): Seq[data] = {
 
-    val startTime = System.nanoTime
     log.info(" *** Comienzo algoritmo ***\n")
 
-    var historico_enjambre = Seq.fill[Double](n_iteraciones)((0.0))
-
+    var historico_enjambre = Seq.fill[data](n_iteraciones)(data(0.0,0.0))
 
     var enjambre = crearEnjambre(n_particulas, n_variables, limites_inf, limites_sup)
 
-    var diferencia = 0.0
-
-    var timeParallelize = 0.0
+    var time = 0.0
     historico_enjambre = (0 until n_iteraciones) map { case i => {
       val startTime = System.nanoTime
       enjambre = evaluarEnjambre(enjambre, func, TipoOptimizacion.minimizar, sc)
-      timeParallelize += (System.nanoTime - startTime)/1E6
+
 
       val new_inercia = (inercia_max - inercia_min) * (n_iteraciones - i) / (n_iteraciones + inercia_min)
 
       enjambre = moverEnjambre(enjambre, new_inercia, peso_cognitivo, peso_social,
         limites_inf, limites_sup)
 
+      time += (System.nanoTime - startTime)/1E6
 
-      (enjambre.mejorParticula.mejorValor.get)
+      data(enjambre.mejorParticula.mejorValor.get,time)
     }
     }
-    println("Tiempo parallelize : %.0f milisegundos".format(timeParallelize));
-    log.info("\n Algoritmo finalizado, tiempo transcurrido: %.0f milisegundos".format((System.nanoTime - startTime)/1E6) + "\n")
     historico_enjambre
   }
 }

@@ -1,4 +1,4 @@
-package Logic
+package Secuencial
 
 import java.io.{BufferedWriter, File, FileWriter, PrintWriter}
 
@@ -95,17 +95,17 @@ object PsoSec {
                          limites_inf: Vector[Double], limites_sup: Vector[Double],
                          n_particulas: Int, n_iteraciones: Int, inercia: Double, reduc_inercia: Boolean,
                          inercia_max: Double, inercia_min: Double, peso_cognitivo: Int, peso_social: Int,
-                         parada_temprana: Boolean, rondas_parada: Option[Int], tolerancia_parada: Option[Double]): Seq[Double] = {
+                         parada_temprana: Boolean, rondas_parada: Option[Int], tolerancia_parada: Option[Double]): Seq[data] = {
 
 
     val startTime = System.nanoTime
     print(" *** Comienzo algoritmo ***\n")
 
-    var historico_enjambre = Seq.fill[Double](n_iteraciones)(0.0)
+    var historico_enjambre = Seq.fill[data](n_iteraciones)(data(0.0,0.0))
 
 
     var enjambre = crearEnjambre(n_particulas, n_variables, limites_inf, limites_sup)
-
+    var time = 0.0
     historico_enjambre = (0 until n_iteraciones) map { case i => {
 
       val initTime = System.nanoTime
@@ -116,8 +116,8 @@ object PsoSec {
       enjambre = moverEnjambre(enjambre, new_inercia, peso_cognitivo, peso_social,
         limites_inf, limites_sup)
 
-      val time = (System.nanoTime - initTime)/1E6
-      (enjambre.mejorParticula.mejorValor.get)
+      time += (System.nanoTime - initTime)/1E6
+      data(enjambre.mejorParticula.mejorValor.get,time)
     }
     }
     print("\n Algoritmo finalizado, tiempo transcurrido: %.0f milisegundos".format((System.nanoTime - startTime)/1E6) + "\n")

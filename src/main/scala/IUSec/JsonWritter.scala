@@ -1,11 +1,11 @@
-package PsoSecInterface
+package IUSec
 
 
-import java.io.{BufferedWriter, File, FileWriter}
+import java.io.{BufferedWriter, File, FileWriter, PrintWriter}
 
 import Common.{Ackley, ExecutionParameters, Quadric, Rastrigin, Spherical}
 import Entities.{TipoOptimizacion, data}
-import Logic.PsoSec
+import Secuencial.PsoSec
 import au.com.bytecode.opencsv.CSVWriter
 
 import scala.collection.JavaConversions._
@@ -21,8 +21,8 @@ class JsonWriter(ep: ExecutionParameters){
       case Rastrigin => funcName = "Rastrigin"
       case Spherical => funcName = "Spherical"
     }
-    var statistics = Vector.fill[Double](20)(0.0)
-    var convergence = Seq.fill[Double](ep.iterations)(0.0)
+    var statistics = Vector.fill[data](20)(data(0.0,0.0))
+    var convergence = Seq.fill[data](ep.iterations)(data(0.0,0.0))
     println("***Comienzo del algoritmo***")
     for (i <-0 to 19){
       println("Iteracion ",i)
@@ -37,27 +37,21 @@ class JsonWriter(ep: ExecutionParameters){
     }
     var file = new File(getClass.getClassLoader.getResource("secStatistics"+funcName+".csv").getPath)
     var outputFile = new BufferedWriter(new FileWriter(file))
-    var csvWriter = new CSVWriter(outputFile)
-    var csvFields = Array("value")
-    var listOfRecords = new ListBuffer[Array[String]]()
-    listOfRecords +=csvFields
+    outputFile.write("exp"+","+"value"+","+"time"+"\n")
+    var cont = 1
     (statistics) map { case value => {
-      listOfRecords+= Array(value.toString)
+      outputFile.write(cont.toString+","+value.value.toString+","+value.time.toString+"\n")
+      cont+=1
     }}
-    var aux  : java.util.List[Array[String]] = listOfRecords.toList
-    csvWriter.writeAll(aux)
     outputFile.close()
     file = new File(getClass.getClassLoader.getResource("sec"+funcName+".csv").getPath)
     outputFile = new BufferedWriter(new FileWriter(file))
-    csvWriter = new CSVWriter(outputFile)
-    csvFields = Array("value")
-    listOfRecords = new ListBuffer[Array[String]]()
-    listOfRecords +=csvFields
+    outputFile.write("iter"+","+"value"+","+"time"+"\n")
+    cont=1
     (convergence) map { case value => {
-      listOfRecords+= Array(value.toString)
+      outputFile.write(cont.toString+","+value.value.toString+","+value.time.toString+"\n")
+      cont+=1
     }}
-    aux = listOfRecords.toList
-    csvWriter.writeAll(aux)
     outputFile.close()
     println("\n Archivo " + funcName + " escrito y preparado para visualización!\n")
 

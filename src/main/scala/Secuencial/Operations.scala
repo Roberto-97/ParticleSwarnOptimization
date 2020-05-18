@@ -1,4 +1,4 @@
-package Logic
+package Secuencial
 
 object productVector extends ((Vector[Double],Vector[Double]) => Vector[Double]){
   def apply(v1 : Vector[Double],v2 : Vector[Double]): Vector[Double] = {

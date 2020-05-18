@@ -2,7 +2,7 @@ package Spark
 
 import Common.{Ackley, BBOFunction}
 import Entities.TipoOptimizacion
-import Logic.{productVector, substractVector, sumVector}
+import Secuencial.{productVector, substractVector, sumVector}
 
 class Particula(var id: Int, var posicion: Vector[Double], var velocidad: Vector[Double], var mejorPosicion: Vector[Double],
                 var valor: Option[Double], var mejorValor: Option[Double]) extends Serializable{
@@ -108,8 +108,13 @@ object ParticleSwarnOptimization {
 object testAckey extends App{
   var enjambre = ParticleSwarnOptimization.crearEnjambre(1200,8,Vector(-100.0,-100.0,-100.0,-100.0,-100.0,-100.0,-100.0,-100.0),Vector(100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0))
   var i=0;
-  while ( i < 2500){
-    enjambre = ParticleSwarnOptimization.optimizar_enjambre(enjambre,1500,Ackley,TipoOptimizacion.minimizar,0.9,0.4,2,2,i)
+  while ( i < 5){
+    var j=0;
+    while (j != 50) {
+      enjambre = ParticleSwarnOptimization.optimizar_enjambre(enjambre, 1500, Ackley, TipoOptimizacion.minimizar, 0.9, 0.4, 2, 2, i)
+      j+=1
+    }
+      print(enjambre.minBy(p => p.mejorValor.get).mejorValor+"\n")
     i+=1
   }
 
