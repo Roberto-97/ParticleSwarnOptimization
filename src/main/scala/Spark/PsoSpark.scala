@@ -16,10 +16,10 @@ object PsoSpark {
 
 class PsoSpark(iterations: Int, func:BBOFunction, inercia: Double, pesoCognitivo: Int, pesoSocial: Int,
                optimizacion: TipoOptimizacion.Optimizacion, funcName: String)
-  extends ((Enjambre,Double) => Enjambre) with Serializable {
+  extends ((Enjambre,Double) => (Enjambre,Vector[data])) with Serializable {
 
 
-  def apply(enjambre: Enjambre, timeGlobal: Double): Enjambre = {
+  def apply(enjambre: Enjambre, timeGlobal: Double): (Enjambre,Vector[data]) = {
     var new_enjambre = enjambre
     var i = 0
     var time=timeGlobal
@@ -33,6 +33,6 @@ class PsoSpark(iterations: Int, func:BBOFunction, inercia: Double, pesoCognitivo
       result = result.updated(i,data(mejor_valor.get,time))
       i+=1
     }
-    new_enjambre
+    (new_enjambre,result)
   }
 }
