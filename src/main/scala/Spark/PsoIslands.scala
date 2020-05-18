@@ -36,10 +36,9 @@ class PsoIslands(ep: ExecutionParameters) {
       var i=0;
       val initTime = System.nanoTime
       print("Global iteration nº ",globalIterations+"\n")
-      val result = islands(population,new RandomPartitioner(ep.islands), psoFunction)
-      population = context.parallelize(result._1).keyBy(_.id)
+      population = islands(population,new RandomPartitioner(ep.islands), psoFunction, time)
       while (j < contIterations){
-        infoResults = infoResults.updated(j,result._2(i))
+        //infoResults = infoResults.updated(j,result._2(i))
         j+=1
         i+=1
       }
@@ -59,15 +58,14 @@ class PsoIslands(ep: ExecutionParameters) {
 
   }
 
-  def islands(population: RDD[(Int,Particula)], partitioner: Partitioner, psoFunction: (Enjambre => Vector[(Enjambre,Vector[data])])) : (Enjambre,Vector[data]) = {
+  def islands(population: RDD[(Int,Particula)], partitioner: Partitioner, psoFunction: ((Enjambre,Double) => Enjambre), time: Double) : RDD[(Int,Particula)] = {
     var enjambre= population
-    val result = enjambre.partitionBy(partitioner)
+    enjambre = enjambre.partitionBy(partitioner)
         .mapPartitions(p => {
-          val result = psoFunction.apply(p.map(_._2).toVector).toIterator
+          val result = psoFunction.apply(p.map(_._2).toVector,time).toIterator
           result
-        })
-    val par = result.collect()
-    (par(0)._1,par(0)._2)
+        }).keyBy(_.id)
+    enjambre
   }
 
 }

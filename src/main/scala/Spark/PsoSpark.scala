@@ -16,13 +16,13 @@ object PsoSpark {
 
 class PsoSpark(iterations: Int, func:BBOFunction, inercia: Double, pesoCognitivo: Int, pesoSocial: Int,
                optimizacion: TipoOptimizacion.Optimizacion, funcName: String)
-  extends (Enjambre => Vector[(Enjambre,Vector[data])]) with Serializable {
+  extends ((Enjambre,Double) => Enjambre) with Serializable {
 
 
-  def apply(enjambre: Enjambre): Vector[(Enjambre,Vector[data])] = {
+  def apply(enjambre: Enjambre, timeGlobal: Double): Enjambre = {
     var new_enjambre = enjambre
     var i = 0
-    var time=0.0
+    var time=timeGlobal
     var result = Vector.fill[data](iterations)(data(0.0,0.0))
     while (i < iterations){
       val initTime = System.nanoTime
@@ -33,6 +33,6 @@ class PsoSpark(iterations: Int, func:BBOFunction, inercia: Double, pesoCognitivo
       result = result.updated(i,data(mejor_valor.get,time))
       i+=1
     }
-    Vector((new_enjambre,result))
+    new_enjambre
   }
 }
