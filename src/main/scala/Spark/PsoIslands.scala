@@ -36,10 +36,9 @@ class PsoIslands(ep: ExecutionParameters) {
       var i=0;
       val initTime = System.nanoTime
       print("Global iteration nº ",globalIterations+"\n")
-      population= islands(population,new RandomPartitioner(ep.islands), psoFunction, time).cache()
+      val tuple = islands(population,new RandomPartitioner(ep.islands), psoFunction, time)
+      population = tuple._1
       val best = population.reduce((a,b) => if (a._2.mejorValor.get < b._2.mejorValor.get) a else b)._2.mejorValor.get
-      val mejorParticula = population.map(p => (p._2.mejorValor))
-        .reduce((a,b) => if (a.get < b.get) a else b).get
       results = results.updated(cont,best)
       cont +=1
       println("Mejor partícula =>"+ best + "\n")
@@ -54,14 +53,16 @@ class PsoIslands(ep: ExecutionParameters) {
 
   }
 
-  def islands(population: RDD[(Int,Particula)], partitioner: Partitioner, psoFunction: ((Enjambre,Double) => (Enjambre,Vector[data])), time: Double) : RDD[(Int,Particula)] = {
+  def islands(population: RDD[(Int,Particula)], partitioner: Partitioner, psoFunction: ((Enjambre,Double) => Option[(Enjambre,Vector[data])]), time: Double) : (RDD[(Int,Particula)],RDD[Vector[data]]) = {
     var enjambre= population
-    enjambre = enjambre.partitionBy(partitioner)
-        .mapPartitions(p => {
-          val result = psoFunction.apply(p.map(_._2).toSeq,time)
-          result._1.toIterator
-        }).keyBy(_.id)
-    enjambre
+    var result = enjambre.partitionBy(partitioner)
+      .mapPartitions(p => {
+        val info = psoFunction.apply(p.map(_._2).toVector,time).toIterator
+        info
+      })
+    val rdd = result.map(e => e._1).flatMap(l => l).keyBy(_.id).cache()
+    val info = result.map(element => element._2).cache()
+    (rdd,info)
   }
 
 }

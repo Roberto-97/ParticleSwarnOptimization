@@ -18,7 +18,7 @@ class Particula(var id: Int, var posicion: Vector[Double], var velocidad: Vector
 
 
 object ParticleSwarnOptimization {
-  type Enjambre = Seq[Particula]
+  type Enjambre = Vector[Particula]
 
   def randomValue(min: Double, max:Double): Double ={
     val r = new scala.util.Random

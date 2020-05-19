@@ -59,7 +59,8 @@ class PsoMasterSlave(ep: ExecutionParameters) {
   def evaluarEnjambre(enjambre: Enjambre, func: BBOFunction, optimizacion: TipoOptimizacion.Optimizacion, sc: SparkContext)
   : Enjambre = {
 
-    enjambre.listaParticulas = sc.parallelize(enjambre.listaParticulas,4).map(particula => evaluarPartícula(particula, optimizacion, func))
+    enjambre.listaParticulas = sc.parallelize(enjambre.listaParticulas,4)
+      .map(particula => evaluarPartícula(particula, optimizacion, func))
       .collect()
       .toVector
     enjambre.mejorParticula = enjambre.listaParticulas.minBy(p => p.mejorValor.get)
