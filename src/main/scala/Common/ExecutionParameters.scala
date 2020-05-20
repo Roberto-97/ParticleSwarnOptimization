@@ -11,8 +11,8 @@ case class ExecutionParameters(func : BBOFunction = BBOFunctions(0),
                                inercia_min : Double = 0.4,
                                peso_cognitivo : Int = 2,
                                peso_social : Int = 2,
-                               islands : Int = 4,
-                               globalIterations : Int = 20,
+                               islands : Int = 1,
+                               globalIterations : Int = 1,
                                islandsIterations : Int = 12,
                                cooperation: Int = 50
                               )

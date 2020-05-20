@@ -11,7 +11,6 @@ import ParticleSwarnOptimization.Enjambre
 class PsoIslands(ep: ExecutionParameters) {
 
   def run(context : SparkContext): Unit = {
-    val startTime = System.nanoTime
     var funcName = ""
     (ep.func) match {
       case Ackley => funcName = "Ackley"
@@ -20,37 +19,56 @@ class PsoIslands(ep: ExecutionParameters) {
       case Spherical => funcName = "Spherical"
     }
     print(" *** Comienzo algoritmo ***\n")
-    var population = context.parallelize(PsoSpark.crearEnjambre(ep.n_particulas,ep.n_variables,ep.limit_inf,
-      ep.limit_sup)).keyBy(_.id)
-    val psoFunction = new PsoSpark(ep.iterations, ep.func, ep.inercia, ep.peso_cognitivo, ep.peso_social,
-      TipoOptimizacion.minimizar,funcName)
-    var globalIterations = ep.globalIterations
-    var results = Vector.fill[Double](ep.globalIterations)(0.0)
-    var infoResults = Vector.fill[data](ep.globalIterations * ep.iterations)(data(0.0,0.0))
-    var cont = 0
-    var time = 0.0
-    var iterGlobal = 1
-    var j=0
-    var contIterations = ep.iterations
-    while (globalIterations > 0) {
-      var i=0;
-      val initTime = System.nanoTime
-      print("Global iteration nº ",globalIterations+"\n")
-      val tuple = islands(population,new RandomPartitioner(ep.islands), psoFunction, time)
-      population = tuple._1
-      val best = population.reduce((a,b) => if (a._2.mejorValor.get < b._2.mejorValor.get) a else b)._2.mejorValor.get
-      results = results.updated(cont,best)
-      cont +=1
-      println("Mejor partícula =>"+ best + "\n")
-      iterGlobal += ep.cooperation
-      globalIterations-= 1
-      contIterations+=ep.iterations
-      time+=(System.nanoTime - initTime)/1E6
+    var beanPlot = Vector.fill[data](20)(data(0.0,0.0))
+    var infoResults = Vector.fill[Vector[data]](ep.islands)(Vector.fill[data](ep.iterations)(data(0.0,0.0)))
+    for (k <- 0 to 19) {
+      var population = context.parallelize(PsoSpark.crearEnjambre(ep.n_particulas, ep.n_variables, ep.limit_inf,
+        ep.limit_sup)).keyBy(_.id)
+      val psoFunction = new PsoSpark(ep.iterations, ep.func, ep.inercia, ep.peso_cognitivo, ep.peso_social,
+        TipoOptimizacion.minimizar, funcName)
+      var globalIterations = ep.globalIterations
+      var best=0.0
+      var time = 0.0
+      val startTime = System.nanoTime
+      while (globalIterations > 0) {
+        val initTime = System.nanoTime
+        print("Global iteration nº ", globalIterations + "\n")
+        val tuple = islands(population, new RandomPartitioner(ep.islands), psoFunction, time)
+        population = tuple._1
+        best = population.reduce((a, b) => if (a._2.mejorValor.get < b._2.mejorValor.get) a else b)._2.mejorValor.get
+        val dataVector = tuple._2.collect().toVector
+        for (j <-0 to ep.islands-1){
+          infoResults = infoResults.updated(j,dataVector(j))
+        }
+        println("Mejor partícula =>" + best + "\n")
+        globalIterations -= 1
+        time += (System.nanoTime - initTime) / 1E6
+      }
+      val finalTime = ((System.nanoTime - startTime) / 1E6)
+      beanPlot = beanPlot.updated(k,data(best,finalTime))
     }
-    //print("Info results", infoResults)
-    println("Resultado ",results)
-    print("\n Algoritmo finalizado, tiempo transcurrido: %.0f milisegundos".format((System.nanoTime - startTime)/1E6) + "\n")
-
+    var file = new File(getClass.getClassLoader.getResource("1-islands-stat-sc-"+funcName+".csv").getPath)
+    var outputFile = new BufferedWriter(new FileWriter(file))
+    outputFile.write("exp"+","+"value"+","+"time"+"\n")
+    var cont = 1
+    (beanPlot) map { case value => {
+      outputFile.write(cont.toString+","+value.value.toString+","+value.time.toString+"\n")
+      cont+=1
+    }}
+    outputFile.close()
+    for(i<-0 to ep.islands-1) {
+      file = new File(getClass.getClassLoader.getResource("1-islands-convergence-sc-" + funcName + "-"+i+ ".csv").getPath)
+      outputFile = new BufferedWriter(new FileWriter(file))
+      outputFile.write("iter" + "," + "value" + "," + "time" + "\n")
+      cont = 1
+      (infoResults(i)) map { case value => {
+        outputFile.write(cont.toString + "," + value.value.toString + "," + value.time.toString + "\n")
+        cont += 1
+      }
+      }
+      outputFile.close()
+    }
+    println("\n Archivo " + funcName + " escrito y preparado para visualización!\n")
   }
 
   def islands(population: RDD[(Int,Particula)], partitioner: Partitioner, psoFunction: ((Enjambre,Double) => Option[(Enjambre,Vector[data])]), time: Double) : (RDD[(Int,Particula)],RDD[Vector[data]]) = {
@@ -61,7 +79,7 @@ class PsoIslands(ep: ExecutionParameters) {
         info
       })
     val rdd = result.map(e => e._1).flatMap(l => l).keyBy(_.id).cache()
-    val info = result.map(element => element._2).cache()
+    val info = result.map(e => e._2).cache()
     (rdd,info)
   }
 

@@ -35,7 +35,7 @@ class PsoMasterSlave(ep: ExecutionParameters) {
       }
       statistics = statistics.updated(i,value)
     }
-    var file = new File(getClass.getClassLoader.getResource("master-slave-stat-"+funcName+"-1"+".csv").getPath)
+    var file = new File("master-slave-stat-"+funcName+"-1"+".csv")
     var outputFile = new BufferedWriter(new FileWriter(file))
     outputFile.write("exp"+","+"value"+","+"time"+"\n")
     var cont = 1
@@ -44,7 +44,7 @@ class PsoMasterSlave(ep: ExecutionParameters) {
       cont+=1
     }}
     outputFile.close()
-    file = new File(getClass.getClassLoader.getResource("master-slave-"+funcName+"-1"+".csv").getPath)
+    file = new File("master-slave-"+funcName+"-1"+".csv")
     outputFile = new BufferedWriter(new FileWriter(file))
     outputFile.write("iter"+","+"value"+","+"time"+"\n")
     cont=1
