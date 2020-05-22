@@ -20,7 +20,8 @@ class PsoIslands(ep: ExecutionParameters) {
     }
     print(" *** Comienzo algoritmo ***\n")
     var beanPlot = Vector.fill[data](20)(data(0.0,0.0))
-    var infoResults = Vector.fill[Vector[data]](ep.islands)(Vector.fill[data](ep.iterations)(data(0.0,0.0)))
+    var results = Vector.fill[Double](ep.globalIterations)(0.0)
+    var infoResults = Vector.fill[Vector[data]](ep.islands)(Vector.fill[data](ep.globalIterations*ep.iterations)(data(0.0,0.0)))
     for (k <- 0 to 19) {
       var population = context.parallelize(PsoSpark.crearEnjambre(ep.n_particulas, ep.n_variables, ep.limit_inf,
         ep.limit_sup)).keyBy(_.id)
@@ -29,7 +30,10 @@ class PsoIslands(ep: ExecutionParameters) {
       var globalIterations = ep.globalIterations
       var best=0.0
       var time = 0.0
+      var finalTime = 0.0
       val startTime = System.nanoTime
+      var iterGlobal = 0
+      var contGlobal = ep.iterations
       while (globalIterations > 0) {
         val initTime = System.nanoTime
         print("Global iteration nº ", globalIterations + "\n")
@@ -38,16 +42,27 @@ class PsoIslands(ep: ExecutionParameters) {
         best = population.reduce((a, b) => if (a._2.mejorValor.get < b._2.mejorValor.get) a else b)._2.mejorValor.get
         val dataVector = tuple._2.collect().toVector
         for (j <-0 to ep.islands-1){
-          infoResults = infoResults.updated(j,dataVector(j))
+          var i = 0
+          if (j > 0) iterGlobal-=ep.iterations
+          while(iterGlobal < contGlobal){
+            iterGlobal+=1
+            i+=1
+            infoResults = infoResults.updated(j,infoResults(j).updated(iterGlobal-1,dataVector(j)(i-1)))
+          }
         }
+        contGlobal+=ep.iterations
+        finalTime = ((System.nanoTime - startTime) / 1E6)
         println("Mejor partícula =>" + best + "\n")
         globalIterations -= 1
         time += (System.nanoTime - initTime) / 1E6
       }
-      val finalTime = ((System.nanoTime - startTime) / 1E6)
       beanPlot = beanPlot.updated(k,data(best,finalTime))
     }
-    var file = new File(getClass.getClassLoader.getResource("1-islands-stat-sc-"+funcName+".csv").getPath)
+
+    var file = new File(ep.islands+"-islands-stat-cc-"+funcName+".csv")
+    if (ep.cooperation == 0){
+      file = new File(ep.islands+"-islands-stat-sc-"+funcName+".csv")
+    }
     var outputFile = new BufferedWriter(new FileWriter(file))
     outputFile.write("exp"+","+"value"+","+"time"+"\n")
     var cont = 1
@@ -57,7 +72,10 @@ class PsoIslands(ep: ExecutionParameters) {
     }}
     outputFile.close()
     for(i<-0 to ep.islands-1) {
-      file = new File(getClass.getClassLoader.getResource("1-islands-convergence-sc-" + funcName + "-"+i+ ".csv").getPath)
+      file = new File(ep.islands.toString +"-islands-convergence-cc-" + funcName + "-"+i+ ".csv")
+      if (ep.cooperation == 0){
+        file = new File(ep.islands.toString +"-islands-convergence-sc-"+funcName+"-"+i+".csv")
+      }
       outputFile = new BufferedWriter(new FileWriter(file))
       outputFile.write("iter" + "," + "value" + "," + "time" + "\n")
       cont = 1
@@ -77,9 +95,9 @@ class PsoIslands(ep: ExecutionParameters) {
       .mapPartitions(p => {
         val info = psoFunction.apply(p.map(_._2).toVector,time).toIterator
         info
-      })
-    val rdd = result.map(e => e._1).flatMap(l => l).keyBy(_.id).cache()
-    val info = result.map(e => e._2).cache()
+      }).cache()
+    val rdd = result.map(e => e._1).flatMap(l => l).keyBy(_.id)
+    val info = result.map(e => e._2)
     (rdd,info)
   }
 
