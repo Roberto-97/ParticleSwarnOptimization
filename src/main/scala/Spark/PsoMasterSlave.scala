@@ -7,10 +7,8 @@ import Entities.{Enjambre, TipoOptimizacion, data}
 import org.apache.log4j.Logger
 import org.apache.spark.SparkContext
 import Secuencial.PsoSec.{crearEnjambre, evaluarPartícula, moverEnjambre}
-import au.com.bytecode.opencsv.CSVWriter
 
-import scala.collection.JavaConverters._
-import scala.collection.mutable.ListBuffer
+import scala.util.Random
 
 class PsoMasterSlave(ep: ExecutionParameters) {
 
@@ -23,24 +21,26 @@ class PsoMasterSlave(ep: ExecutionParameters) {
       case Rastrigin => funcName = "Rastrigin"
       case Spherical => funcName = "Spherical"
     }
-    var statistics = Vector.fill[data](20)(data(0.0,0.0))
-    var convergence = Seq.fill[data](ep.iterations)(data(0.0,0.0))
-    for (i <- 0 to 19) {
+    var statistics = Vector.fill[(Int,data)](ep.numberExperiments)(0,data(0.0,0.0))
+    var convergence = Vector.fill[(Int,Seq[data])](ep.numberExperiments)(0,Vector.fill[data](ep.iterations)(data(0.0,0.0)))
+    var finalConvergence = Vector.fill[data](ep.iterations)(data(0.0,0.0))
+    for (i <- 0 to ep.numberExperiments-1) {
       println("Iteracion ",i)
       val data = optimizar_enjambre(ep.func, ep.n_variables, ep.limit_inf, ep.limit_sup, ep.n_particulas, ep.iterations, ep.inercia,
         ep.inercia_max, ep.inercia_min, ep.peso_cognitivo, ep.peso_social, sparkContext)
       val value = data(ep.iterations-1)
-      if (i == 10){
-        convergence = data
-      }
-      statistics = statistics.updated(i,value)
+      statistics = statistics.updated(i,(i,value))
+      convergence = convergence.updated(i,(i,data))
     }
+    statistics = statistics.sortWith(_._2.value < _._2.value)
+    val median = (statistics.size / 2);
+    finalConvergence = convergence(statistics(median)._1)._2.toVector
     var file = new File("master-slave-stat-"+funcName+"-1"+".csv")
     var outputFile = new BufferedWriter(new FileWriter(file))
     outputFile.write("exp"+","+"value"+","+"time"+"\n")
     var cont = 1
     (statistics) map { case value => {
-      outputFile.write(cont.toString+","+value.value.toString+","+value.time.toString+"\n")
+      outputFile.write(cont.toString+","+value._2.value.toString+","+value._2.time.toString+"\n")
       cont+=1
     }}
     outputFile.close()
@@ -48,7 +48,7 @@ class PsoMasterSlave(ep: ExecutionParameters) {
     outputFile = new BufferedWriter(new FileWriter(file))
     outputFile.write("iter"+","+"value"+","+"time"+"\n")
     cont=1
-    (convergence) map { case value => {
+    (finalConvergence) map { case value => {
       outputFile.write(cont.toString+","+value.value.toString+","+value.time.toString+"\n")
       cont+=1
     }}
@@ -59,7 +59,7 @@ class PsoMasterSlave(ep: ExecutionParameters) {
   def evaluarEnjambre(enjambre: Enjambre, func: BBOFunction, optimizacion: TipoOptimizacion.Optimizacion, sc: SparkContext)
   : Enjambre = {
 
-    enjambre.listaParticulas = sc.parallelize(enjambre.listaParticulas,4)
+    enjambre.listaParticulas = sc.parallelize(enjambre.listaParticulas)
       .map(particula => evaluarPartícula(particula, optimizacion, func))
       .collect()
       .toVector

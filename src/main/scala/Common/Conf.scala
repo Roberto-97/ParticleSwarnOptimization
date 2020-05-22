@@ -10,10 +10,12 @@ class Conf(args : Seq[String]) extends ScallopConf(args) with Serializable {
   val islands = opt[Int](required = false, validate = _ > 0)
   val global = opt[Int](required = false, validate = _ > 0)
   val cooperation = opt[Int](required = false,validate = f => f >= 0 && f <= 1)
+  val experiments = opt[Int](required = true, validate = _ > 0)
   verify()
 
   def build: ExecutionParameters = {
     ExecutionParameters(BBOFunctions(function()),n_variables(),iterations(),n_particulas(),limit_inf = Vector.fill[Double](n_variables())(-100.0),
-      limit_sup = Vector.fill[Double](n_variables())(100.0),islands = islands(),globalIterations = global(),cooperation = cooperation())
+      limit_sup = Vector.fill[Double](n_variables())(100.0),islands = islands.getOrElse(1),globalIterations = global.getOrElse(1),
+      cooperation = cooperation.getOrElse(1), numberExperiments = experiments())
   }
 }

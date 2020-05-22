@@ -19,10 +19,11 @@ class PsoIslands(ep: ExecutionParameters) {
       case Spherical => funcName = "Spherical"
     }
     print(" *** Comienzo algoritmo ***\n")
-    var beanPlot = Vector.fill[data](20)(data(0.0,0.0))
-    var results = Vector.fill[Double](ep.globalIterations)(0.0)
+    var beanPlot = Vector.fill[(Int,data)](ep.numberExperiments)(0,data(0.0,0.0))
+    var convergence = Vector.fill[(Int,Vector[Vector[data]])](ep.numberExperiments)(0,Vector.fill[Vector[data]](ep.islands)(Vector.fill[data](ep.iterations)(data(0.0,0.0))))
     var infoResults = Vector.fill[Vector[data]](ep.islands)(Vector.fill[data](ep.globalIterations*ep.iterations)(data(0.0,0.0)))
-    for (k <- 0 to 19) {
+    var finalConvergence = Vector.fill[Vector[data]](ep.islands)(Vector.fill[data](ep.iterations)(data(0.0,0.0)))
+    for (k <- 0 to ep.numberExperiments-1) {
       var population = context.parallelize(PsoSpark.crearEnjambre(ep.n_particulas, ep.n_variables, ep.limit_inf,
         ep.limit_sup)).keyBy(_.id)
       val psoFunction = new PsoSpark(ep.iterations, ep.func, ep.inercia, ep.peso_cognitivo, ep.peso_social,
@@ -56,9 +57,12 @@ class PsoIslands(ep: ExecutionParameters) {
         globalIterations -= 1
         time += (System.nanoTime - initTime) / 1E6
       }
-      beanPlot = beanPlot.updated(k,data(best,finalTime))
+      beanPlot = beanPlot.updated(k,(k,data(best,finalTime)))
+      convergence = convergence.updated(k,(k,infoResults))
     }
-
+    beanPlot = beanPlot.sortWith(_._2.value < _._2.value)
+    val median = (beanPlot.size / 2);
+    finalConvergence = convergence(beanPlot(median)._1)._2
     var file = new File(ep.islands+"-islands-stat-cc-"+funcName+".csv")
     if (ep.cooperation == 0){
       file = new File(ep.islands+"-islands-stat-sc-"+funcName+".csv")
@@ -67,7 +71,7 @@ class PsoIslands(ep: ExecutionParameters) {
     outputFile.write("exp"+","+"value"+","+"time"+"\n")
     var cont = 1
     (beanPlot) map { case value => {
-      outputFile.write(cont.toString+","+value.value.toString+","+value.time.toString+"\n")
+      outputFile.write(cont.toString+","+value._2.value.toString+","+value._2.time.toString+"\n")
       cont+=1
     }}
     outputFile.close()
@@ -79,7 +83,7 @@ class PsoIslands(ep: ExecutionParameters) {
       outputFile = new BufferedWriter(new FileWriter(file))
       outputFile.write("iter" + "," + "value" + "," + "time" + "\n")
       cont = 1
-      (infoResults(i)) map { case value => {
+      (finalConvergence(i)) map { case value => {
         outputFile.write(cont.toString + "," + value.value.toString + "," + value.time.toString + "\n")
         cont += 1
       }

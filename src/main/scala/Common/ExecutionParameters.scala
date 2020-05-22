@@ -14,5 +14,6 @@ case class ExecutionParameters(func : BBOFunction = BBOFunctions(0),
                                islands : Int = 1,
                                globalIterations : Int = 5,
                                islandsIterations : Int = 12,
-                               cooperation: Int = 1
+                               cooperation: Int = 1,
+                               numberExperiments: Int = 20
                               )
