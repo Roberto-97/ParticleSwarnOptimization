@@ -23,14 +23,14 @@ class PsoSpark(iterations: Int, func:BBOFunction, inercia: Double, pesoCognitivo
     var new_enjambre = enjambre
     var i = 0
     var time=timeGlobal
-    var result = Vector.fill[data](iterations)(data(0.0,0.0))
+    var result = Vector[data]()
     while (i < iterations){
       val initTime = System.nanoTime
       new_enjambre=ParticleSwarnOptimization.optimizar_enjambre(new_enjambre,iterations,func,optimizacion,inercia_max = 0.9,inercia_min = 0.4,
         pesoCognitivo,pesoSocial,i)
       val mejor_valor = new_enjambre.minBy(p => p.mejorValor).mejorValor
       time+=(System.nanoTime - initTime)/1E6
-      result = result.updated(i,data(mejor_valor.get,time))
+      result = result :+ data(mejor_valor.get,time)
       i+=1
     }
     Option((new_enjambre,result))

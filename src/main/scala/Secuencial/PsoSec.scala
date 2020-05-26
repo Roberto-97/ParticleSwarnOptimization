@@ -95,19 +95,17 @@ object PsoSec {
                          limites_inf: Vector[Double], limites_sup: Vector[Double],
                          n_particulas: Int, n_iteraciones: Int, inercia: Double, reduc_inercia: Boolean,
                          inercia_max: Double, inercia_min: Double, peso_cognitivo: Int, peso_social: Int,
-                         parada_temprana: Boolean, rondas_parada: Option[Int], tolerancia_parada: Option[Double]): Seq[data] = {
+                         parada : Double, criterio : String): Seq[data] = {
 
 
     val startTime = System.nanoTime
     print(" *** Comienzo algoritmo ***\n")
-
-    var historico_enjambre = Seq.fill[data](n_iteraciones)(data(0.0,0.0))
-
-
     var enjambre = crearEnjambre(n_particulas, n_variables, limites_inf, limites_sup)
     var time = 0.0
-    historico_enjambre = (0 until n_iteraciones) map { case i => {
-
+    var i = 0
+    var termination = false
+    var historico_enjambre = Vector[data]()
+    do{
       val initTime = System.nanoTime
       enjambre = evaluarEnjambre(enjambre, func, optimizacion)
 
@@ -115,11 +113,11 @@ object PsoSec {
 
       enjambre = moverEnjambre(enjambre, new_inercia, peso_cognitivo, peso_social,
         limites_inf, limites_sup)
-
+      historico_enjambre = historico_enjambre :+ data(enjambre.mejorParticula.mejorValor.get,time)
+      i+=1
+      termination = if (parada >= BigDecimal(enjambre.mejorParticula.mejorValor.get).setScale(40,BigDecimal.RoundingMode.HALF_UP).toDouble) true else false
       time += (System.nanoTime - initTime)/1E6
-      data(enjambre.mejorParticula.mejorValor.get,time)
-    }
-    }
+    } while (if (criterio == "esf") i < n_iteraciones else if (criterio == "cal") !termination else (i < n_iteraciones && !termination))
     print("\n Algoritmo finalizado, tiempo transcurrido: %.0f milisegundos".format((System.nanoTime - startTime)/1E6) + "\n")
 
     historico_enjambre
@@ -127,14 +125,19 @@ object PsoSec {
 
 }
 
-object testRastrigin extends App {
-  print("\n"+ PsoSec.optimizar_enjambre(Rastrigin,8,TipoOptimizacion.minimizar,Vector(-100.0,-100.0,-100.0,-100.0,-100.0,-100.0,-100.0,-100.0),Vector(100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0),500,500,0.8,true,0.9,0.4,2,2,false,Some(120),Some(0.000001)))
-}
-
-object testSpherical extends App {
-  print("\n"+ PsoSec.optimizar_enjambre(Spherical,8,TipoOptimizacion.minimizar,Vector(-100.0,-100.0,-100.0,-100.0,-100.0,-100.0,-100.0,-100.0),Vector(100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0),150,150,0.8,true,0.9,0.4,2,2,false,Some(120),Some(0.000001)))
+object testAckley extends App {
+  print("\n"+ PsoSec.optimizar_enjambre(Ackley,10,TipoOptimizacion.minimizar,Vector(-80.0,-80.0,-80.0,-80.0,-80.0,-80.0,-80.0,-80.0,-80.0,-80.0),Vector(80.0,80.0,80.0,80.0,80.0,80.0,80.0,80.0,80.0,80.0),1200,150,0.8,true,0.9,0.4,2,2,20.0,"cal"))
 }
 
 object testQuadric extends App {
-  print("\n"+ PsoSec.optimizar_enjambre(Quadric,8,TipoOptimizacion.minimizar,Vector(-100.0,-100.0,-100.0,-100.0,-100.0,-100.0,-100.0,-100.0),Vector(100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0),500,500,0.8,true,0.9,0.4,2,2,false,Some(120),Some(0.000001)))
+  print("\n"+ PsoSec.optimizar_enjambre(Quadric,10,TipoOptimizacion.minimizar,Vector(-100.0,-100.0,-100.0,-100.0,-100.0,-100.0,-100.0,-100.0,-100.0,-100.0),Vector(100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0),1200,150,0.8,true,0.9,0.4,2,2,0.00000005,"cal"))
 }
+
+object testRastrigin extends App {
+  print("\n"+ PsoSec.optimizar_enjambre(Rastrigin,10,TipoOptimizacion.minimizar,Vector(-100.0,-100.0,-100.0,-100.0,-100.0,-100.0,-100.0,-100.0,-100.0,-100.0),Vector(100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0),1200,150,0.8,true,0.9,0.4,2,2,0.99,"cal"))
+}
+
+object testSpherical extends App {
+  print("\n"+ PsoSec.optimizar_enjambre(Spherical,10,TipoOptimizacion.minimizar,Vector(-100.0,-100.0,-100.0,-100.0,-100.0,-100.0,-100.0,-100.0,-100.0,-100.0),Vector(100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0),1200,150,0.8,true,0.9,0.4,2,2,0.00000000000000000000000000000001,"cal"))
+}
+

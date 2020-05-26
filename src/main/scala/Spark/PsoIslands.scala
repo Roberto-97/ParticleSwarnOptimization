@@ -19,11 +19,11 @@ class PsoIslands(ep: ExecutionParameters) {
       case Spherical => funcName = "Spherical"
     }
     print(" *** Comienzo algoritmo ***\n")
-    var beanPlot = Vector.fill[(Int,data)](ep.numberExperiments)(0,data(0.0,0.0))
-    var convergence = Vector.fill[(Int,Vector[Vector[data]])](ep.numberExperiments)(0,Vector.fill[Vector[data]](ep.islands)(Vector.fill[data](ep.iterations)(data(0.0,0.0))))
-    var infoResults = Vector.fill[Vector[data]](ep.islands)(Vector.fill[data](ep.globalIterations*ep.iterations)(data(0.0,0.0)))
-    var finalConvergence = Vector.fill[Vector[data]](ep.islands)(Vector.fill[data](ep.iterations)(data(0.0,0.0)))
+    var beanPlot = Vector.fill[(Int,(data,String))](ep.numberExperiments)(0,(data(0.0,0.0),""))
+    var convergence = Vector.fill[(Int,Vector[Vector[data]])](ep.numberExperiments)(0, Vector.fill[Vector[data]](ep.islands)(Vector[data]()))
+    var finalConvergence = Vector.fill[Vector[data]](ep.islands)(Vector[data]())
     for (k <- 0 to ep.numberExperiments-1) {
+      var infoResults = Vector.fill[Vector[data]](ep.islands)(Vector[data]())
       var population = context.parallelize(PsoSpark.crearEnjambre(ep.n_particulas, ep.n_variables, ep.limit_inf,
         ep.limit_sup)).keyBy(_.id)
       val psoFunction = new PsoSpark(ep.iterations, ep.func, ep.inercia, ep.peso_cognitivo, ep.peso_social,
@@ -33,9 +33,9 @@ class PsoIslands(ep: ExecutionParameters) {
       var time = 0.0
       var finalTime = 0.0
       val startTime = System.nanoTime
-      var iterGlobal = 0
-      var contGlobal = ep.iterations
-      while (globalIterations > 0) {
+      var termination = false
+      var criterio = ""
+      while (if (ep.criterio == "esf") globalIterations > 0 else if (ep.criterio == "cal") !termination else (globalIterations > 0 && !termination)) {
         val initTime = System.nanoTime
         print("Global iteration nº ", globalIterations + "\n")
         val tuple = islands(population, new RandomPartitioner(ep.islands), psoFunction, time)
@@ -44,23 +44,22 @@ class PsoIslands(ep: ExecutionParameters) {
         val dataVector = tuple._2.collect().toVector
         for (j <-0 to ep.islands-1){
           var i = 0
-          if (j > 0) iterGlobal-=ep.iterations
-          while(iterGlobal < contGlobal){
-            iterGlobal+=1
+          while(i < ep.iterations){
             i+=1
-            infoResults = infoResults.updated(j,infoResults(j).updated(iterGlobal-1,dataVector(j)(i-1)))
+            infoResults =infoResults.updated(j,infoResults(j) :+ dataVector(j)(i-1))
           }
         }
-        contGlobal+=ep.iterations
         finalTime = ((System.nanoTime - startTime) / 1E6)
         println("Mejor partícula =>" + best + "\n")
         globalIterations -= 1
+        termination = if (ep.parada >= BigDecimal(best).setScale(40,BigDecimal.RoundingMode.HALF_UP).toDouble) true else false
         time += (System.nanoTime - initTime) / 1E6
       }
-      beanPlot = beanPlot.updated(k,(k,data(best,finalTime)))
+      if (termination == true) criterio="cal" else criterio="esf"
+      beanPlot = beanPlot.updated(k,(k,(data(best,finalTime),criterio)))
       convergence = convergence.updated(k,(k,infoResults))
     }
-    beanPlot = beanPlot.sortWith(_._2.value < _._2.value)
+    beanPlot = beanPlot.sortWith(_._2._1.value < _._2._1.value)
     val median = (beanPlot.size / 2);
     finalConvergence = convergence(beanPlot(median)._1)._2
     var file = new File(ep.islands+"-islands-stat-cc-"+funcName+".csv")
@@ -68,10 +67,20 @@ class PsoIslands(ep: ExecutionParameters) {
       file = new File(ep.islands+"-islands-stat-sc-"+funcName+".csv")
     }
     var outputFile = new BufferedWriter(new FileWriter(file))
-    outputFile.write("exp"+","+"value"+","+"time"+"\n")
+    if (ep.criterio == "both") {
+      outputFile.write("exp" + "," + "value" + "," + "time" + "," + "stop" + "\n")
+    }
+    else {
+      outputFile.write("exp" + "," + "value" + "," + "time" + "\n")
+    }
     var cont = 1
-    (beanPlot) map { case value => {
-      outputFile.write(cont.toString+","+value._2.value.toString+","+value._2.time.toString+"\n")
+    (beanPlot) map { case e => {
+      if (ep.criterio == "both") {
+        outputFile.write(cont.toString + "," + e._2._1.value.toString + "," + e._2._1.time.toString + "," + e._2._2 + "\n")
+      }
+      else {
+        outputFile.write(cont.toString + "," + e._2._1.value.toString + "," + e._2._1.time.toString +"\n")
+      }
       cont+=1
     }}
     outputFile.close()
