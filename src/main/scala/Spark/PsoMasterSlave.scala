@@ -3,10 +3,10 @@ package Spark
 import java.io.{BufferedWriter, File, FileWriter}
 
 import Common.{Ackley, BBOFunction, ExecutionParameters, Quadric, Rastrigin, Spherical}
-import Entities.{Enjambre, TipoOptimizacion, data}
+import Entities.{TipoOptimizacion, data}
 import org.apache.log4j.Logger
 import org.apache.spark.SparkContext
-import Secuencial.PsoSec.{crearEnjambre, evaluarPartícula, moverEnjambre}
+import Secuencial.PsoSec.{Enjambre, crearEnjambre, evaluarPartícula, moverEnjambre}
 
 
 class PsoMasterSlave(ep: ExecutionParameters) {
@@ -70,12 +70,12 @@ class PsoMasterSlave(ep: ExecutionParameters) {
   def evaluarEnjambre(enjambre: Enjambre, func: BBOFunction, optimizacion: TipoOptimizacion.Optimizacion, sc: SparkContext)
   : Enjambre = {
 
-    enjambre.listaParticulas = sc.parallelize(enjambre.listaParticulas)
+    var new_enjambre = enjambre
+    new_enjambre = sc.parallelize(new_enjambre)
       .map(particula => evaluarPartícula(particula, optimizacion, func))
       .collect()
       .toVector
-    enjambre.mejorParticula = enjambre.listaParticulas.minBy(p => p.mejorValor.get)
-    enjambre
+    new_enjambre
   }
 
   def optimizar_enjambre(func: BBOFunction, n_variables: Int, optimizacion: TipoOptimizacion.Optimizacion, limites_inf: Vector[Double], limites_sup: Vector[Double],
@@ -95,11 +95,16 @@ class PsoMasterSlave(ep: ExecutionParameters) {
 
       val new_inercia = (inercia_max - inercia_min) * (n_iteraciones - i) / (n_iteraciones + inercia_min)
 
-      enjambre = moverEnjambre(enjambre, new_inercia, peso_cognitivo, peso_social,
-        limites_inf, limites_sup)
-      historico_enjambre = historico_enjambre :+ data(enjambre.mejorParticula.mejorValor.get,time)
+      enjambre = moverEnjambre(enjambre, new_inercia, peso_cognitivo, peso_social)
+
+      val mejor_valor = enjambre.minBy(p => p.mejorValor.get).mejorValor.get
+
+      historico_enjambre = historico_enjambre :+ data(mejor_valor,time)
+
       i+=1
-      termination = if (parada >= BigDecimal(enjambre.mejorParticula.mejorValor.get).setScale(40,BigDecimal.RoundingMode.HALF_UP).toDouble) true else false
+
+      termination = if (parada >= BigDecimal(mejor_valor).setScale(40,BigDecimal.RoundingMode.HALF_UP).toDouble) true else false
+
       time += (System.nanoTime - startTime)/1E6
     } while (if (criterio == "esf") i < n_iteraciones else if (criterio == "cal") !termination else (i < n_iteraciones && !termination))
     historico_enjambre

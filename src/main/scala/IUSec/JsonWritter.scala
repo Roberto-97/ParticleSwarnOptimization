@@ -36,18 +36,18 @@ class JsonWriter(ep: ExecutionParameters){
     statistics = statistics.sortWith(_._2._1.value < _._2._1.value)
     val median = (statistics.size / 2);
     finalConvergence = convergence(statistics(median)._1)._2.toVector
-    var file = new File("secStatistics"+funcName+".csv")
+    var file = new File("secStatistics"+funcName+ep.criterio+".csv")
     var outputFile = new BufferedWriter(new FileWriter(file))
-    if (ep.criterio == "both") {
-      outputFile.write("exp" + "," + "value" + "," + "time" + "," + "stop" + "\n")
+    if (ep.criterio != "esf") {
+      outputFile.write("exp" + "," + "value" + "," + "time" + "," + "stop"+","+"iter" + "\n")
     }
     else {
       outputFile.write("exp" + "," + "value" + "," + "time" + "\n")
     }
     var cont = 1
     (statistics) map { case e => {
-      if (ep.criterio == "both") {
-        outputFile.write(cont.toString + "," + e._2._1.value.toString + "," + e._2._1.time.toString + "," + e._2._2 + "\n")
+      if (ep.criterio != "esf") {
+        outputFile.write(cont.toString + "," + e._2._1.value.toString + "," + e._2._1.time.toString + "," + e._2._2 + ","+convergence(e._1)._2.size.toString+ "\n")
       }
       else {
         outputFile.write(cont.toString + "," + e._2._1.value.toString + "," + e._2._1.time.toString +"\n")
@@ -55,7 +55,7 @@ class JsonWriter(ep: ExecutionParameters){
       cont+=1
     }}
     outputFile.close()
-    file = new File("sec"+funcName+".csv")
+    file = new File("sec"+funcName+ep.criterio+".csv")
     outputFile = new BufferedWriter(new FileWriter(file))
     outputFile.write("iter"+","+"value"+","+"time"+"\n")
     cont=1

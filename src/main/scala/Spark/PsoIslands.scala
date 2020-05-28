@@ -3,10 +3,10 @@ package Spark
 import java.io.{BufferedWriter, File, FileWriter}
 
 import Common.{Ackley, ExecutionParameters, Quadric, Rastrigin, Spherical}
-import Entities.{TipoOptimizacion, data}
+import Entities.{Particula, TipoOptimizacion, data}
+import Secuencial.PsoSec.Enjambre
 import org.apache.spark.{Partitioner, SparkContext}
 import org.apache.spark.rdd.RDD
-import ParticleSwarnOptimization.Enjambre
 
 class PsoIslands(ep: ExecutionParameters) {
 
@@ -22,12 +22,13 @@ class PsoIslands(ep: ExecutionParameters) {
     var beanPlot = Vector.fill[(Int,(data,String))](ep.numberExperiments)(0,(data(0.0,0.0),""))
     var convergence = Vector.fill[(Int,Vector[Vector[data]])](ep.numberExperiments)(0, Vector.fill[Vector[data]](ep.islands)(Vector[data]()))
     var finalConvergence = Vector.fill[Vector[data]](ep.islands)(Vector[data]())
+    var numIters = Vector.fill[Int](ep.numberExperiments)(0)
     for (k <- 0 to ep.numberExperiments-1) {
       var infoResults = Vector.fill[Vector[data]](ep.islands)(Vector[data]())
       var population = context.parallelize(PsoSpark.crearEnjambre(ep.n_particulas, ep.n_variables, ep.limit_inf,
         ep.limit_sup)).keyBy(_.id)
       val psoFunction = new PsoSpark(ep.iterations, ep.func, ep.inercia, ep.peso_cognitivo, ep.peso_social,
-        TipoOptimizacion.minimizar, funcName)
+        TipoOptimizacion.minimizar, ep.inercia_max, ep.inercia_min)
       var globalIterations = ep.globalIterations
       var best=0.0
       var time = 0.0
@@ -35,6 +36,7 @@ class PsoIslands(ep: ExecutionParameters) {
       val startTime = System.nanoTime
       var termination = false
       var criterio = ""
+      var contGlobal = 0
       while (if (ep.criterio == "esf") globalIterations > 0 else if (ep.criterio == "cal") !termination else (globalIterations > 0 && !termination)) {
         val initTime = System.nanoTime
         print("Global iteration nº ", globalIterations + "\n")
@@ -52,42 +54,44 @@ class PsoIslands(ep: ExecutionParameters) {
         finalTime = ((System.nanoTime - startTime) / 1E6)
         println("Mejor partícula =>" + best + "\n")
         globalIterations -= 1
-        termination = if (ep.parada >= BigDecimal(best).setScale(40,BigDecimal.RoundingMode.HALF_UP).toDouble) true else false
+        contGlobal+=1
+        termination = if (ep.parada >= BigDecimal(best).setScale(120,BigDecimal.RoundingMode.HALF_UP).toDouble) true else false
         time += (System.nanoTime - initTime) / 1E6
       }
       if (termination == true) criterio="cal" else criterio="esf"
       beanPlot = beanPlot.updated(k,(k,(data(best,finalTime),criterio)))
       convergence = convergence.updated(k,(k,infoResults))
+      numIters = numIters.updated(k,contGlobal)
     }
     beanPlot = beanPlot.sortWith(_._2._1.value < _._2._1.value)
     val median = (beanPlot.size / 2);
     finalConvergence = convergence(beanPlot(median)._1)._2
-    var file = new File(ep.islands+"-islands-stat-cc-"+funcName+".csv")
+    var file = new File(ep.islands+"-islands-stat-cc-"+funcName+ep.criterio+".csv")
     if (ep.cooperation == 0){
-      file = new File(ep.islands+"-islands-stat-sc-"+funcName+".csv")
+      file = new File(ep.islands+"-islands-stat-sc-"+funcName+ep.criterio+".csv")
     }
     var outputFile = new BufferedWriter(new FileWriter(file))
-    if (ep.criterio == "both") {
-      outputFile.write("exp" + "," + "value" + "," + "time" + "," + "stop" + "\n")
+    if (ep.criterio != "esf") {
+      outputFile.write("exp" + "," + "value" + "," + "time" + "," + "stop" +","+"iter"+"\n")
     }
     else {
-      outputFile.write("exp" + "," + "value" + "," + "time" + "\n")
+      outputFile.write("exp" + "," + "value" + "," + "time" +","+"num_colab"+ "\n")
     }
     var cont = 1
-    (beanPlot) map { case e => {
-      if (ep.criterio == "both") {
-        outputFile.write(cont.toString + "," + e._2._1.value.toString + "," + e._2._1.time.toString + "," + e._2._2 + "\n")
+    (beanPlot) map { case elem => {
+      if (ep.criterio != "esf") {
+        outputFile.write(cont.toString + "," + elem._2._1.value.toString + "," + elem._2._1.time.toString + "," + elem._2._2+","+numIters(elem._1)+ "\n")
       }
       else {
-        outputFile.write(cont.toString + "," + e._2._1.value.toString + "," + e._2._1.time.toString +"\n")
+        outputFile.write(cont.toString + "," + elem._2._1.value.toString + "," + elem._2._1.time.toString+","+ep.globalIterations +"\n")
       }
       cont+=1
     }}
     outputFile.close()
     for(i<-0 to ep.islands-1) {
-      file = new File(ep.islands.toString +"-islands-convergence-cc-" + funcName + "-"+i+ ".csv")
+      file = new File(ep.islands.toString +"-islands-convergence-cc-" + funcName + "-"+i+ep.criterio+ ".csv")
       if (ep.cooperation == 0){
-        file = new File(ep.islands.toString +"-islands-convergence-sc-"+funcName+"-"+i+".csv")
+        file = new File(ep.islands.toString +"-islands-convergence-sc-"+funcName+"-"+i+ep.criterio+".csv")
       }
       outputFile = new BufferedWriter(new FileWriter(file))
       outputFile.write("iter" + "," + "value" + "," + "time" + "\n")
@@ -103,8 +107,8 @@ class PsoIslands(ep: ExecutionParameters) {
   }
 
   def islands(population: RDD[(Int,Particula)], partitioner: Partitioner, psoFunction: ((Enjambre,Double) => Option[(Enjambre,Vector[data])]), time: Double) : (RDD[(Int,Particula)],RDD[Vector[data]]) = {
-    var enjambre= population
-    var result = enjambre.partitionBy(partitioner)
+    val enjambre= population
+    val result = enjambre.partitionBy(partitioner)
       .mapPartitions(p => {
         val info = psoFunction.apply(p.map(_._2).toVector,time).toIterator
         info

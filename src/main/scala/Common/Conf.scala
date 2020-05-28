@@ -12,7 +12,7 @@ class Conf(args : Seq[String]) extends ScallopConf(args) with Serializable {
   val cooperation = opt[Int](required = false,validate = f => f >= 0 && f <= 1)
   val experiments = opt[Int](required = true, validate = _ > 0)
   val workers = opt[Int](required = false,validate =_ > 0)
-  val parada = opt[Double](required = true, validate = _ > 0)
+  val parada = opt[Double](required = true, validate = _ >= 0)
   val criterio = opt[String](required = true)
   verify()
 
