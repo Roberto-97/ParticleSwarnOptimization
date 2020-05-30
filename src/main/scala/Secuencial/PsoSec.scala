@@ -4,7 +4,7 @@ package Secuencial
 
 import java.io.{BufferedWriter, File, FileWriter}
 
-import Common.{Ackley, BBOFunction, ExecutionParameters, Quadric, Rastrigin, Spherical}
+import Common.{Ackley, BBOFunction, ExecutionParameters, Quadric, Rosenbrock, Schwefel}
 import Entities.{Particula, TipoOptimizacion, data}
 
 class PsoSecuencial(ep: ExecutionParameters){
@@ -14,8 +14,8 @@ class PsoSecuencial(ep: ExecutionParameters){
     (ep.func) match {
       case Ackley => funcName = "Ackley"
       case Quadric => funcName = "Quadric"
-      case Rastrigin => funcName = "Rastrigin"
-      case Spherical => funcName = "Spherical"
+      case Rosenbrock => funcName = "Rosenbrock"
+      case Schwefel => funcName = "Schwefel"
     }
     var statistics = Vector.fill[(Int,(data,String))](ep.numberExperiments)(0,(data(0.0,0.0),""))
     var convergence = Vector[(Int,Seq[data])]()
@@ -161,11 +161,13 @@ object PsoSec {
     var historico_enjambre = Vector[data]()
     do{
       val initTime = System.nanoTime
+
       enjambre = evaluarEnjambre(enjambre, func, optimizacion)
 
       val new_inercia = (inercia_max - inercia_min) * (n_iteraciones - i) / (n_iteraciones + inercia_min)
 
       enjambre = moverEnjambre(enjambre, new_inercia, peso_cognitivo, peso_social)
+
 
       val mejor_valor = enjambre.minBy(p => p.mejorValor.get).mejorValor.get
 
@@ -182,19 +184,5 @@ object PsoSec {
 
 }
 
-object testAckley extends App {
-  print("\n"+ PsoSec.optimizar_enjambre(Ackley,10,TipoOptimizacion.minimizar,Vector(-80.0,-80.0,-80.0,-80.0,-80.0,-80.0,-80.0,-80.0,-80.0,-80.0),Vector(80.0,80.0,80.0,80.0,80.0,80.0,80.0,80.0,80.0,80.0),1200,150,0.8,true,0.9,0.4,2,2,20.0,"cal"))
-}
 
-object testQuadric extends App {
-  print("\n"+ PsoSec.optimizar_enjambre(Quadric,10,TipoOptimizacion.minimizar,Vector(-100.0,-100.0,-100.0,-100.0,-100.0,-100.0,-100.0,-100.0,-100.0,-100.0),Vector(100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0),1200,150,0.8,true,0.9,0.4,2,2,0.00000005,"cal"))
-}
-
-object testRastrigin extends App {
-  print("\n"+ PsoSec.optimizar_enjambre(Rastrigin,10,TipoOptimizacion.minimizar,Vector(-100.0,-100.0,-100.0,-100.0,-100.0,-100.0,-100.0,-100.0,-100.0,-100.0),Vector(100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0),1200,150,0.8,true,0.9,0.4,2,2,0.99,"cal"))
-}
-
-object testSpherical extends App {
-  print("\n"+ PsoSec.optimizar_enjambre(Spherical,10,TipoOptimizacion.minimizar,Vector(-100.0,-100.0,-100.0,-100.0,-100.0,-100.0,-100.0,-100.0,-100.0,-100.0),Vector(100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0),1200,150,0.8,true,0.9,0.4,2,2,0.00000000000000000000000000000001,"cal"))
-}
 

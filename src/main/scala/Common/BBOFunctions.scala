@@ -1,7 +1,7 @@
 package Common
 
 object BBOFunctions {
-  val functions = Vector(Ackley, Quadric, Rastrigin, Spherical)
+  val functions = Vector(Ackley, Quadric, Rosenbrock, Schwefel)
   def apply(i: Int): BBOFunction = functions(i)
 }
 

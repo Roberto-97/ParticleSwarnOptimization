@@ -2,7 +2,7 @@ package Spark
 
 import java.io.{BufferedWriter, File, FileWriter}
 
-import Common.{Ackley, BBOFunction, ExecutionParameters, Quadric, Rastrigin, Spherical}
+import Common.{Ackley, BBOFunction, ExecutionParameters, Quadric, Rosenbrock, Schwefel}
 import Entities.{TipoOptimizacion, data}
 import org.apache.log4j.Logger
 import org.apache.spark.SparkContext
@@ -17,13 +17,14 @@ class PsoMasterSlave(ep: ExecutionParameters) {
     (ep.func) match {
       case Ackley => funcName = "Ackley"
       case Quadric => funcName = "Quadric"
-      case Rastrigin => funcName = "Rastrigin"
-      case Spherical => funcName = "Spherical"
+      case Rosenbrock => funcName = "Rosenbrock"
+      case Schwefel => funcName = "Schwefel"
     }
     var statistics = Vector.fill[(Int,(data,String))](ep.numberExperiments)(0,(data(0.0,0.0),""))
     var convergence = Vector[(Int,Seq[data])]()
     var finalConvergence = Vector[data]()
     var criterio = ""
+    val numPartitions = sparkContext.defaultParallelism
     for (i <- 0 to ep.numberExperiments-1) {
       println("Iteracion ",i)
       val data = optimizar_enjambre(ep.func, ep.n_variables, TipoOptimizacion.minimizar, ep.limit_inf, ep.limit_sup, ep.n_particulas, ep.iterations, ep.inercia,
@@ -36,10 +37,10 @@ class PsoMasterSlave(ep: ExecutionParameters) {
     statistics = statistics.sortWith(_._2._1.value < _._2._1.value)
     val median = (statistics.size / 2);
     finalConvergence = convergence(statistics(median)._1)._2.toVector
-    var file = new File("master-slave-stat-"+funcName+"-"+ep.workers+".csv")
+    var file = new File("master-slave-stat-"+funcName+"-"+numPartitions+ep.criterio+".csv")
     var outputFile = new BufferedWriter(new FileWriter(file))
-    if (ep.criterio == "both") {
-      outputFile.write("exp" + "," + "value" + "," + "time" + "," + "stop" + "\n")
+    if (ep.criterio != "esf") {
+      outputFile.write("exp" + "," + "value" + "," + "time" + "," + "stop"+","+"iter" + "\n")
     }
     else {
       outputFile.write("exp" + "," + "value" + "," + "time" + "\n")
@@ -47,7 +48,7 @@ class PsoMasterSlave(ep: ExecutionParameters) {
     var cont = 1
     (statistics) map { case e => {
       if (ep.criterio == "both") {
-        outputFile.write(cont.toString + "," + e._2._1.value.toString + "," + e._2._1.time.toString + "," + e._2._2 + "\n")
+        outputFile.write(cont.toString + "," + e._2._1.value.toString + "," + e._2._1.time.toString + "," + e._2._2 +","+convergence(e._1)._2.size.toString+ "\n")
       }
       else {
         outputFile.write(cont.toString + "," + e._2._1.value.toString + "," + e._2._1.time.toString +"\n")
@@ -55,7 +56,7 @@ class PsoMasterSlave(ep: ExecutionParameters) {
       cont+=1
     }}
     outputFile.close()
-    file = new File("master-slave-"+funcName+"-"+ep.workers+".csv")
+    file = new File("master-slave-"+funcName+"-"+numPartitions+ep.criterio+".csv")
     outputFile = new BufferedWriter(new FileWriter(file))
     outputFile.write("iter"+","+"value"+","+"time"+"\n")
     cont=1

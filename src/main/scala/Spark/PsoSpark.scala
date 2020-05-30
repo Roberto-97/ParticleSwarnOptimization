@@ -16,13 +16,12 @@ object PsoSpark {
 
 class PsoSpark(iterations: Int, func:BBOFunction, inercia: Double, pesoCognitivo: Int, pesoSocial: Int,
                optimizacion: TipoOptimizacion.Optimizacion, inercia_max: Double, inercia_min: Double)
-  extends ((Enjambre,Double) => Option[(Enjambre,Vector[data])]) with Serializable {
+  extends ((Enjambre,Double) => Option[(Vector[(Int,Particula)],Vector[data])]) with Serializable {
 
 
   def optimizar_enjambre(enjambre: Enjambre, n_iteraciones: Int, func: BBOFunction,
                          optimizacion: TipoOptimizacion.Optimizacion, inercia_max: Double, inercia_min: Double, peso_cognitivo: Int,
                          peso_social: Int,i: Int): Enjambre = {
-
     var new_enjambre = enjambre
 
     new_enjambre = PsoSec.evaluarEnjambre(new_enjambre, func, optimizacion)
@@ -35,7 +34,7 @@ class PsoSpark(iterations: Int, func:BBOFunction, inercia: Double, pesoCognitivo
   }
 
 
-  def apply(enjambre: Enjambre, timeGlobal: Double): Option[(Enjambre,Vector[data])] = {
+  def apply(enjambre: Enjambre, timeGlobal: Double): Option[(Vector[(Int,Particula)],Vector[data])] = {
 
     var new_enjambre = enjambre
     var i = 0
@@ -55,7 +54,7 @@ class PsoSpark(iterations: Int, func:BBOFunction, inercia: Double, pesoCognitivo
 
       i+=1
     }
-    Option((new_enjambre,result))
+    Option((new_enjambre.map(p => (p.id,p)),result))
   }
 
 
