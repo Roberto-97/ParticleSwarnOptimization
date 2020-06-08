@@ -15,7 +15,8 @@ object PsoSpark {
 }
 
 class PsoSpark(iterations: Int, func:BBOFunction, inercia: Double, pesoCognitivo: Int, pesoSocial: Int,
-               optimizacion: TipoOptimizacion.Optimizacion, inercia_max: Double, inercia_min: Double)
+               optimizacion: TipoOptimizacion.Optimizacion, inercia_max: Double, inercia_min: Double, parada: Double,
+               criterio: String)
   extends ((Enjambre,Double) => Option[(Vector[(Int,Particula)],Vector[data])]) with Serializable {
 
 
@@ -40,7 +41,8 @@ class PsoSpark(iterations: Int, func:BBOFunction, inercia: Double, pesoCognitivo
     var i = 0
     var time=timeGlobal
     var result = Vector[data]()
-    while (i < iterations){
+    var termination = false
+    while (if (criterio == "esf") i < iterations else if (criterio == "cal") !termination else (i < iterations && !termination)){
       val initTime = System.nanoTime
 
       new_enjambre = optimizar_enjambre(new_enjambre,iterations,func,optimizacion,inercia_max ,inercia_min ,
@@ -51,7 +53,7 @@ class PsoSpark(iterations: Int, func:BBOFunction, inercia: Double, pesoCognitivo
       time+=(System.nanoTime - initTime)/1E6
 
       result = result :+ data(mejor_valor.get,time)
-
+      termination = if (parada >= BigDecimal(mejor_valor.get).setScale(120,BigDecimal.RoundingMode.HALF_UP).toDouble) true else false
       i+=1
     }
     Option((new_enjambre.map(p => (p.id,p)),result))

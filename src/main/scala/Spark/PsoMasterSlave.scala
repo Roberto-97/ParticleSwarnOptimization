@@ -73,7 +73,7 @@ class PsoMasterSlave(ep: ExecutionParameters) {
 
   def evaluarEnjambre(enjambre: RDD[Particula], func: BBOFunction, optimizacion: TipoOptimizacion.Optimizacion)
   : RDD[Particula] = {
-    enjambre.map(particula => PsoSec.evaluarPartícula(particula, optimizacion, func)).collect().toVector
+    enjambre.map(particula => PsoSec.evaluarPartícula(particula, optimizacion, func))
   }
 
   def moverEnjambre(enjambre: RDD[Particula], inercia: Double, mejor_particula: Particula, pesoCognitivo: Int, pesoSocial: Int): RDD[Particula] = {

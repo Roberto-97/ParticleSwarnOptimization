@@ -29,7 +29,7 @@ class PsoIslands(ep: ExecutionParameters) {
       var population = context.parallelize(PsoSpark.crearEnjambre(ep.n_particulas, ep.n_variables, ep.limit_inf,
         ep.limit_sup)).keyBy(_.id).cache()
       val psoFunction = new PsoSpark(ep.iterations, ep.func, ep.inercia, ep.peso_cognitivo, ep.peso_social,
-        TipoOptimizacion.minimizar, ep.inercia_max, ep.inercia_min)
+        TipoOptimizacion.minimizar, ep.inercia_max, ep.inercia_min, ep.parada, ep.criterio)
       var globalIterations = ep.globalIterations
       var best=0.0
       var time = 0.0
@@ -56,8 +56,12 @@ class PsoIslands(ep: ExecutionParameters) {
         println("Mejor partícula =>" + best + "\n")
         globalIterations -= 1
         contGlobal+=1
-        termination = if (ep.parada >= BigDecimal(best).setScale(120,BigDecimal.RoundingMode.HALF_UP).toDouble) true else false
         time += (System.nanoTime - initTime) / 1E6
+        termination = if (ep.parada >= BigDecimal(best).setScale(120,BigDecimal.RoundingMode.HALF_UP).toDouble) true else false
+        if (((ep.criterio != "esf") && (termination == true))){
+          finalTime = dataVector.flatMap(l => l).reduce((a,b) => if (a.time < b.time) a else b).time
+        }
+
       }
       if (termination == true) criterio="cal" else criterio="esf"
       printf("Final Time -> "+finalTime+"\n")
