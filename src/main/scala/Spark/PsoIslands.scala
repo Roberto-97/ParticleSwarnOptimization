@@ -2,7 +2,7 @@ package Spark
 
 import java.io.{BufferedWriter, File, FileWriter}
 
-import Common.{Ackley, ExecutionParameters, Quadric, Rosenbrock, Schwefel}
+import Common.{Ackley, ExecutionParameters, Griewank, Quadric, Rastrigin, Rosenbrock}
 import Entities.{Particula, TipoOptimizacion, data}
 import Secuencial.PsoSec.Enjambre
 import org.apache.spark.{Partitioner, SparkContext}
@@ -16,7 +16,7 @@ class PsoIslands(ep: ExecutionParameters) {
       case Ackley => funcName = "Ackley"
       case Quadric => funcName = "Quadric"
       case Rosenbrock => funcName = "Rosenbrock"
-      case Schwefel => funcName = "Schwefel"
+      case Rastrigin => funcName = "Rastrigin"
     }
     print(" *** Comienzo algoritmo ***\n")
     val numPartitions = context.defaultParallelism
@@ -26,7 +26,6 @@ class PsoIslands(ep: ExecutionParameters) {
     var numIters = Vector.fill[Int](ep.numberExperiments)(0)
     for (k <- 0 to ep.numberExperiments-1) {
       var infoResults = Vector.fill[Vector[data]](numPartitions)(Vector[data]())
-      val sTime = System.nanoTime
       var population = context.parallelize(PsoSpark.crearEnjambre(ep.n_particulas, ep.n_variables, ep.limit_inf,
         ep.limit_sup)).keyBy(_.id).cache()
       val psoFunction = new PsoSpark(ep.iterations, ep.func, ep.inercia, ep.peso_cognitivo, ep.peso_social,

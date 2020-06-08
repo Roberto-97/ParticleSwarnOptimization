@@ -4,7 +4,7 @@ package Secuencial
 
 import java.io.{BufferedWriter, File, FileWriter}
 
-import Common.{Ackley, BBOFunction, ExecutionParameters, Quadric, Rosenbrock, Schwefel}
+import Common.{Ackley, BBOFunction, ExecutionParameters, Griewank, Quadric, Rastrigin, Rosenbrock, Schwefel}
 import Entities.{Particula, TipoOptimizacion, data}
 
 class PsoSecuencial(ep: ExecutionParameters){
@@ -15,7 +15,7 @@ class PsoSecuencial(ep: ExecutionParameters){
       case Ackley => funcName = "Ackley"
       case Quadric => funcName = "Quadric"
       case Rosenbrock => funcName = "Rosenbrock"
-      case Schwefel => funcName = "Schwefel"
+      case Rastrigin => funcName = "Rastrigin"
     }
     var statistics = Vector.fill[(Int,(data,String))](ep.numberExperiments)(0,(data(0.0,0.0),""))
     var convergence = Vector[(Int,Seq[data])]()
