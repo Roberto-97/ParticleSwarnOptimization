@@ -24,6 +24,7 @@ class PsoIslands(ep: ExecutionParameters) {
     var convergence = Vector.fill[(Int,Vector[Vector[data]])](ep.numberExperiments)(0, Vector.fill[Vector[data]](numPartitions)(Vector[data]()))
     var finalConvergence = Vector.fill[Vector[data]](numPartitions)(Vector[data]())
     var numIters = Vector.fill[Int](ep.numberExperiments)(0)
+    var resultFinal = Vector.fill[(data,Int)](ep.numberExperiments)(data(0.0,0.0),0)
     for (k <- 0 to ep.numberExperiments-1) {
       var infoResults = Vector.fill[Vector[data]](numPartitions)(Vector[data]())
       var population = context.parallelize(PsoSpark.crearEnjambre(ep.n_particulas, ep.n_variables, ep.limit_inf,
@@ -47,7 +48,7 @@ class PsoIslands(ep: ExecutionParameters) {
         val dataVector = tuple._2.collect().toVector
         for (j <-0 to numPartitions-1){
           var i = 0
-          while(i < ep.iterations){
+          while(i < dataVector(j).size){
             i+=1
             infoResults =infoResults.updated(j,infoResults(j) :+ dataVector(j)(i-1))
           }
@@ -59,7 +60,8 @@ class PsoIslands(ep: ExecutionParameters) {
         time += (System.nanoTime - initTime) / 1E6
         termination = if (ep.parada >= BigDecimal(best).setScale(120,BigDecimal.RoundingMode.HALF_UP).toDouble) true else false
         if (((ep.criterio != "esf") && (termination == true))){
-          finalTime = dataVector.flatMap(l => l).reduce((a,b) => if (a.time < b.time) a else b).time
+          resultFinal = resultFinal.updated(k,dataVector.map(v => (v.last,v.size)).reduce((a,b) => if (a._1.time < b._1.time) a else b))
+          finalTime = resultFinal(k)._1.time
         }
 
       }
@@ -78,7 +80,7 @@ class PsoIslands(ep: ExecutionParameters) {
     }
     var outputFile = new BufferedWriter(new FileWriter(file))
     if (ep.criterio != "esf") {
-      outputFile.write("exp" + "," + "value" + "," + "time" + "," + "stop" +","+"iter"+"\n")
+      outputFile.write("exp" + "," + "value" + "," + "time" + "," + "stop" +","+"iterGlobal"+","+"iterIsla"+"\n")
     }
     else {
       outputFile.write("exp" + "," + "value" + "," + "time" +","+"num_colab"+ "\n")
@@ -86,7 +88,7 @@ class PsoIslands(ep: ExecutionParameters) {
     var cont = 1
     (beanPlot) map { case elem => {
       if (ep.criterio != "esf") {
-        outputFile.write(cont.toString + "," + elem._2._1.value.toString + "," + elem._2._1.time.toString + "," + elem._2._2+","+numIters(elem._1)+ "\n")
+        outputFile.write(cont.toString + "," + elem._2._1.value.toString + "," + elem._2._1.time.toString + "," + elem._2._2+","+numIters(elem._1)+","+resultFinal(elem._1)._2+ "\n")
       }
       else {
         outputFile.write(cont.toString + "," + elem._2._1.value.toString + "," + elem._2._1.time.toString+","+ep.globalIterations +"\n")

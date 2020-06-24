@@ -33,54 +33,52 @@ class PsoMasterSlave(ep: ExecutionParameters) {
         ep.inercia_max, ep.inercia_min, ep.peso_cognitivo, ep.peso_social, sparkContext, ep.parada, ep.criterio)
       val value = data.last
       print(data)
-//      if (data.size < ep.iterations) criterio="cal" else criterio="esf"
-//      statistics = statistics.updated(i,(i,(value,criterio)))
-//      convergence = convergence :+ (i,data)
+      if (data.size < ep.iterations) criterio="cal" else criterio="esf"
+      statistics = statistics.updated(i,(i,(value,criterio)))
+      convergence = convergence :+ (i,data)
     }
-//    statistics = statistics.sortWith(_._2._1.value < _._2._1.value)
-//    val median = (statistics.size / 2);
-//    finalConvergence = convergence(statistics(median)._1)._2.toVector
-//    var file = new File("master-slave-stat-"+funcName+"-"+numPartitions+ep.criterio+".csv")
-//    var outputFile = new BufferedWriter(new FileWriter(file))
-//    if (ep.criterio != "esf") {
-//      outputFile.write("exp" + "," + "value" + "," + "time" + "," + "stop"+","+"iter" + "\n")
-//    }
-//    else {
-//      outputFile.write("exp" + "," + "value" + "," + "time" + "\n")
-//    }
-//    var cont = 1
-//    (statistics) map { case e => {
-//      if (ep.criterio == "both") {
-//        outputFile.write(cont.toString + "," + e._2._1.value.toString + "," + e._2._1.time.toString + "," + e._2._2 +","+convergence(e._1)._2.size.toString+ "\n")
-//      }
-//      else {
-//        outputFile.write(cont.toString + "," + e._2._1.value.toString + "," + e._2._1.time.toString +"\n")
-//      }
-//      cont+=1
-//    }}
-//    outputFile.close()
-//    file = new File("master-slave-"+funcName+"-"+numPartitions+ep.criterio+".csv")
-//    outputFile = new BufferedWriter(new FileWriter(file))
-//    outputFile.write("iter"+","+"value"+","+"time"+"\n")
-//    cont=1
-//    (finalConvergence) map { case value => {
-//      outputFile.write(cont.toString+","+value.value.toString+","+value.time.toString+"\n")
-//      cont+=1
-//    }}
-//    outputFile.close()
-//    println("\n Archivo " + funcName + " escrito y preparado para visualización!\n")
+    statistics = statistics.sortWith(_._2._1.value < _._2._1.value)
+    val median = (statistics.size / 2);
+    finalConvergence = convergence(statistics(median)._1)._2.toVector
+    var file = new File("master-slave-stat-"+funcName+"-"+numPartitions+ep.criterio+".csv")
+    var outputFile = new BufferedWriter(new FileWriter(file))
+    if (ep.criterio != "esf") {
+      outputFile.write("exp" + "," + "value" + "," + "time" + "," + "stop"+","+"iter" + "\n")
+    }
+    else {
+      outputFile.write("exp" + "," + "value" + "," + "time" + "\n")
+    }
+    var cont = 1
+    (statistics) map { case e => {
+      if (ep.criterio == "both") {
+        outputFile.write(cont.toString + "," + e._2._1.value.toString + "," + e._2._1.time.toString + "," + e._2._2 +","+convergence(e._1)._2.size.toString+ "\n")
+      }
+      else {
+        outputFile.write(cont.toString + "," + e._2._1.value.toString + "," + e._2._1.time.toString +"\n")
+      }
+      cont+=1
+    }}
+    outputFile.close()
+    file = new File("master-slave-"+funcName+"-"+numPartitions+ep.criterio+".csv")
+    outputFile = new BufferedWriter(new FileWriter(file))
+    outputFile.write("iter"+","+"value"+","+"time"+"\n")
+    cont=1
+    (finalConvergence) map { case value => {
+      outputFile.write(cont.toString+","+value.value.toString+","+value.time.toString+"\n")
+      cont+=1
+    }}
+    outputFile.close()
+    println("\n Archivo " + funcName + " escrito y preparado para visualización!\n")
   }
 
-  def evaluarEnjambre(enjambre: RDD[Particula], func: BBOFunction, optimizacion: TipoOptimizacion.Optimizacion)
-  : RDD[Particula] = {
-    enjambre.map(particula => PsoSec.evaluarPartícula(particula, optimizacion, func))
+  def evaluarEnjambre(enjambre: Enjambre, func: BBOFunction, optimizacion: TipoOptimizacion.Optimizacion, sc: SparkContext)
+  : Enjambre = {
+    sc.parallelize(enjambre)
+      .map(particula => PsoSec.evaluarPartícula(particula, optimizacion, func))
+      .collect()
+      .toVector
   }
 
-  def moverEnjambre(enjambre: RDD[Particula], inercia: Double, mejor_particula: Particula, pesoCognitivo: Int, pesoSocial: Int): RDD[Particula] = {
-
-    enjambre.map(particula => PsoSec.moverParticula(particula, mejor_particula.posicion,
-      inercia, pesoCognitivo, pesoSocial))
-  }
 
 
   
@@ -90,7 +88,7 @@ class PsoMasterSlave(ep: ExecutionParameters) {
                          criterio : String ): Seq[data] = {
 
     log.info(" *** Comienzo algoritmo ***\n")
-    var enjambre = sc.parallelize(crearEnjambre(n_particulas, n_variables, limites_inf, limites_sup)).cache()
+    var enjambre = crearEnjambre(n_particulas, n_variables, limites_inf, limites_sup)
     var time = 0.0
     var i = 0
     var termination = false
@@ -98,18 +96,22 @@ class PsoMasterSlave(ep: ExecutionParameters) {
     do {
       val startTime = System.nanoTime
 
-      enjambre = evaluarEnjambre(enjambre,func,optimizacion)
+
+      val eval_enjambre = evaluarEnjambre(enjambre,func,optimizacion,sc)
+
       val new_inercia = (inercia_max - inercia_min) * (n_iteraciones - i) / (n_iteraciones + inercia_min)
 
-      val mejor_particula = enjambre.reduce((a,b) => if (a.mejorValor.get < b.mejorValor.get) a else b)
+      val mover_enjambre = PsoSec.moverEnjambre(eval_enjambre,inercia,peso_cognitivo,peso_social)
 
-      enjambre = moverEnjambre(enjambre,new_inercia,mejor_particula,peso_cognitivo,peso_social)
+      val mejor_particula = mover_enjambre.minBy(p => p.mejorValor.get).mejorValor.get
 
-      historico_enjambre = historico_enjambre :+ data(mejor_particula.mejorValor.get,time)
+      historico_enjambre = historico_enjambre :+ data(mejor_particula,time)
 
       i+=1
 
-      termination = if (parada >= BigDecimal(mejor_particula.mejorValor.get).setScale(40,BigDecimal.RoundingMode.HALF_UP).toDouble) true else false
+      termination = if (parada >= BigDecimal(mejor_particula).setScale(40,BigDecimal.RoundingMode.HALF_UP).toDouble) true else false
+
+      enjambre = mover_enjambre
 
       time += (System.nanoTime - startTime)/1E6
     } while (if (criterio == "esf") i < n_iteraciones else if (criterio == "cal") !termination else (i < n_iteraciones && !termination))

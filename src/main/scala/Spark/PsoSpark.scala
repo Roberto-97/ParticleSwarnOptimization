@@ -42,7 +42,7 @@ class PsoSpark(iterations: Int, func:BBOFunction, inercia: Double, pesoCognitivo
     var time=timeGlobal
     var result = Vector[data]()
     var termination = false
-    while (if (criterio == "esf") i < iterations else if (criterio == "cal") !termination else (i < iterations && !termination)){
+    while (if (criterio == "esf") i < iterations else (i < iterations && !termination)){
       val initTime = System.nanoTime
 
       new_enjambre = optimizar_enjambre(new_enjambre,iterations,func,optimizacion,inercia_max ,inercia_min ,

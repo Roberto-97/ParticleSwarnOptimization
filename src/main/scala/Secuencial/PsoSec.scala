@@ -174,10 +174,9 @@ object PsoSec {
       historico_enjambre = historico_enjambre :+ data(mejor_valor,time)
 
       i+=1
+
       termination = if (parada >= BigDecimal(mejor_valor).setScale(120,BigDecimal.RoundingMode.HALF_UP).toDouble) true else false
-      time += (System.nanoTime - initTime)/1E6
     } while (if (criterio == "esf") i < n_iteraciones else if (criterio == "cal") !termination else (i < n_iteraciones && !termination))
-    print("\n Algoritmo finalizado, tiempo transcurrido: %.0f milisegundos".format((System.nanoTime - startTime)/1E6) + "\n")
 
     historico_enjambre
   }
