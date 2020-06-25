@@ -8,7 +8,6 @@ import Secuencial.PsoSec
 import org.apache.log4j.Logger
 import org.apache.spark.{SparkConf, SparkContext}
 import Secuencial.PsoSec.{Enjambre, crearEnjambre, evaluarPartícula, moverEnjambre}
-import org.apache.spark.rdd.RDD
 
 
 class PsoMasterSlave(ep: ExecutionParameters) {
@@ -101,7 +100,7 @@ class PsoMasterSlave(ep: ExecutionParameters) {
 
       val new_inercia = (inercia_max - inercia_min) * (n_iteraciones - i) / (n_iteraciones + inercia_min)
 
-      val mover_enjambre = PsoSec.moverEnjambre(eval_enjambre,inercia,peso_cognitivo,peso_social)
+      val mover_enjambre = PsoSec.moverEnjambre(eval_enjambre,new_inercia,peso_cognitivo,peso_social)
 
       val mejor_particula = mover_enjambre.minBy(p => p.mejorValor.get).mejorValor.get
 
